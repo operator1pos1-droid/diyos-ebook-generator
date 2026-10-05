@@ -1,7 +1,7 @@
 [{
       "relation": ["delegate_permission/common.handle_all_urls"],
       "target": {
-        "namespace": "android_app",
+        "namespace": "DiYos PDF",
         "package_name": "io.github.operator1pos1_droid.twa",
         "sha256_cert_fingerprints": ["48:EA:39:E5:F0:91:9D:E2:B8:9B:CE:13:5F:37:61:0E:95:6F:A4:10:4C:1D:8A:A6:48:8C:B8:97:12:78:7F:80"]
       }
