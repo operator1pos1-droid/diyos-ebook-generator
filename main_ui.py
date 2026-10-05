@@ -1,4 +1,21 @@
 import streamlit as st
+st.markdown(
+    '''
+    <link rel="manifest" href="https://raw.githubusercontent.com/operator1pos1-droid/diyos-ebook-generator/main/manifest.json">
+    <script>
+      if ('serviceWorker' in navigator) {
+        const swCode = `
+          self.addEventListener('install', e => self.skipWaiting());
+          self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
+          self.addEventListener('fetch', e => e.respondWith(fetch(e.request)));
+        `;
+        const blob = new Blob([swCode], { type: 'application/javascript' });
+        navigator.serviceWorker.register(URL.createObjectURL(blob));
+      }
+    </script>
+    ''',
+    unsafe_allow_html=True
+)
 from app import create_final_ebook_from_memory
 from llm_engine import generate_project_data
 

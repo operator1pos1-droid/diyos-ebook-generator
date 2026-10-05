@@ -1,0 +1,17 @@
+{
+  "name": "DiYos Ebook Generator",
+  "short_name": "DiYos PDF",
+  "description": "Aplikasi AI pembuat ebook pertukangan kayu",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#141821",
+  "theme_color": "#EAB308",
+  "icons": [
+    {
+      "src": "https://raw.githubusercontent.com/operator1pos1-droid/diyos-ebook-generator/main/assets/logo.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    }
+  ]
+}
