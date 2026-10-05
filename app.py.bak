@@ -1,0 +1,239 @@
+import os
+import tempfile
+from fpdf import FPDF
+
+class DiYosEbookPDF(FPDF):
+    def __init__(self, cover_bg="cover_bg.jpg", page_bg="page_bg.jpg"):
+        super().__init__(orientation='P', unit='mm', format='A4')
+        self.cover_bg = cover_bg if os.path.exists(cover_bg) else None
+        self.page_bg = page_bg if os.path.exists(page_bg) else None
+
+    def header(self):
+        if self.page_no() == 1:
+            if self.cover_bg:
+                self.image(self.cover_bg, x=0, y=0, w=210, h=297)
+        else:
+            if self.page_bg:
+                self.image(self.page_bg, x=0, y=0, w=210, h=297)
+
+    def footer(self):
+        if self.page_no() > 1:
+            # UKURAN FONT DINAIKKAN KE 13 PT (BOLD) & POSISI DISESUAIKAN
+            self.set_y(-14.5)
+            self.set_font("Helvetica", "B", 13)  # Ukuran diperbesar dari 9pt ke 13pt
+            self.set_text_color(234, 179, 8)    # Warna Emas (Gold)
+            self.set_x(140)                     # Geser posisi X agar pas di sebelah kiri teks "HALAMAN"
+            self.cell(12, 6, f"{self.page_no()}", border=0, align="R")
+
+def clean_text(txt):
+    if not txt:
+        return ""
+    return str(txt).encode('latin-1', 'replace').decode('latin-1')
+
+def create_final_ebook_from_memory(data: dict) -> bytes:
+    pdf = DiYosEbookPDF(cover_bg="cover_bg.jpg", page_bg="page_bg.jpg")
+    pdf.set_auto_page_break(auto=True, margin=20)
+    
+    # Margin Default
+    pdf.set_top_margin(32)
+    pdf.set_left_margin(15)
+    pdf.set_right_margin(15)
+
+    # ----------------------------------------------------
+    # HALAMAN 1: COVER
+    # ----------------------------------------------------
+    pdf.add_page()
+    if not pdf.cover_bg:
+        pdf.set_fill_color(20, 24, 33)
+        pdf.rect(0, 0, 210, 297, style="F")
+        pdf.set_y(40)
+        pdf.set_font("Helvetica", "B", 26)
+        pdf.set_text_color(234, 179, 8)
+        pdf.cell(0, 12, "DiYos", align="C", ln=1)
+        pdf.set_font("Helvetica", "B", 10)
+        pdf.set_text_color(203, 213, 225)
+        pdf.cell(0, 6, "DIY & CRAFT TUTORIALS", align="C", ln=1)
+
+    pdf.set_y(135)
+    pdf.set_font("Helvetica", "B", 22)
+    pdf.set_text_color(255, 255, 255)
+    project_title = clean_text(data.get('project_title', 'PROYEK DIY').upper())
+    pdf.multi_cell(0, 10, project_title, align="C")
+    
+    pdf.ln(4)
+    pdf.set_font("Helvetica", "B", 13)
+    pdf.set_text_color(234, 179, 8)
+    pdf.cell(0, 8, clean_text("PANDUAN LENGKAP KREASI DIY"), align="C", ln=1)
+    
+    pdf.set_font("Helvetica", "", 10)
+    pdf.set_text_color(203, 213, 225)
+    pdf.cell(0, 6, clean_text("KARYA KREATIF DARI KAYU, LOGAM, DAN BAHAN SEKITAR"), align="C", ln=1)
+    
+    pdf.set_y(260)
+    pdf.set_font("Helvetica", "I", 9)
+    pdf.set_text_color(148, 163, 184)
+    pdf.cell(0, 6, clean_text("TUTORIAL LANGKAH-DEMI-LANGKAH OLEH TIM DIYOS"), align="C", ln=1)
+    
+    # ----------------------------------------------------
+    # BAB 1: MASTER BLUEPRINT (1 HALAMAN)
+    # ----------------------------------------------------
+    pdf.add_page()
+    pdf.set_y(32)
+    
+    pdf.set_font("Helvetica", "B", 14)
+    pdf.set_text_color(234, 179, 8)
+    pdf.cell(0, 8, clean_text(f"BAB 1: MASTER BLUEPRINT - {data.get('project_title', '').upper()}"), ln=1)
+    pdf.set_draw_color(234, 179, 8)
+    pdf.set_line_width(0.5)
+    pdf.line(15, pdf.get_y(), 195, pdf.get_y())
+    pdf.ln(6)
+    
+    pdf.set_font("Helvetica", "B", 11)
+    pdf.set_text_color(255, 255, 255)
+    pdf.cell(0, 7, clean_text("Master Blueprint Visual"), ln=1)
+    pdf.ln(2)
+    
+    if data.get("master_image_bytes"):
+        try:
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
+                tmp.write(data["master_image_bytes"])
+                tmp_path = tmp.name
+            pdf.image(tmp_path, x=20, w=170)
+            os.remove(tmp_path)
+            pdf.ln(4)
+        except Exception:
+            pass
+
+    # ----------------------------------------------------
+    # BAB 2: BILL OF MATERIALS / BOM (1 HALAMAN)
+    # ----------------------------------------------------
+    specs = data.get("specs", {})
+    bom = specs.get("bom", [])
+    if bom or data.get("bom_image_bytes"):
+        pdf.add_page()
+        pdf.set_y(32)
+        
+        pdf.set_font("Helvetica", "B", 14)
+        pdf.set_text_color(234, 179, 8)
+        pdf.cell(0, 8, clean_text("BAB 2: BILL OF MATERIALS (BOM)"), ln=1)
+        pdf.set_draw_color(234, 179, 8)
+        pdf.set_line_width(0.5)
+        pdf.line(15, pdf.get_y(), 195, pdf.get_y())
+        pdf.ln(4)
+        
+        if data.get("bom_image_bytes"):
+            try:
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
+                    tmp.write(data["bom_image_bytes"])
+                    tmp_path = tmp.name
+                pdf.image(tmp_path, x=20, w=170)
+                os.remove(tmp_path)
+                pdf.ln(4)
+            except Exception:
+                pass
+
+        if bom:
+            pdf.set_fill_color(180, 120, 20)
+            pdf.set_text_color(255, 255, 255)
+            pdf.set_font("Helvetica", "B", 9)
+            pdf.cell(75, 7, "  Item / Komponen", 1, 0, "L", fill=True)
+            pdf.cell(20, 7, "Qty", 1, 0, "C", fill=True)
+            pdf.cell(30, 7, "Satuan", 1, 0, "C", fill=True)
+            pdf.cell(55, 7, "Est. Harga (Rp)  ", 1, 1, "R", fill=True)
+            
+            pdf.set_font("Helvetica", "", 9)
+            pdf.set_text_color(226, 232, 240)
+            pdf.set_fill_color(30, 41, 59)
+            for item in bom:
+                pdf.cell(75, 6, clean_text(f"  {item.get('item', '')}"), 1, 0, "L", fill=True)
+                pdf.cell(20, 6, clean_text(str(item.get("qty", ""))), 1, 0, "C", fill=True)
+                pdf.cell(30, 6, clean_text(str(item.get("satuan", ""))), 1, 0, "C", fill=True)
+                harga_str = f"Rp {item.get('estimasi_harga_rupiah', 0):,}  "
+                pdf.cell(55, 6, clean_text(harga_str), 1, 1, "R", fill=True)
+
+    # ----------------------------------------------------
+    # BAB 3: CUTTING LIST / PART DETAIL (1 HALAMAN)
+    # ----------------------------------------------------
+    part_list = specs.get("part_list", [])
+    if part_list or data.get("cutting_image_bytes"):
+        pdf.add_page()
+        pdf.set_y(32)
+        
+        pdf.set_font("Helvetica", "B", 14)
+        pdf.set_text_color(234, 179, 8)
+        pdf.cell(0, 8, clean_text("BAB 3: CUTTING LIST / PART DETAIL"), ln=1)
+        pdf.set_draw_color(234, 179, 8)
+        pdf.set_line_width(0.5)
+        pdf.line(15, pdf.get_y(), 195, pdf.get_y())
+        pdf.ln(4)
+        
+        if data.get("cutting_image_bytes"):
+            try:
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
+                    tmp.write(data["cutting_image_bytes"])
+                    tmp_path = tmp.name
+                pdf.image(tmp_path, x=20, w=170)
+                os.remove(tmp_path)
+                pdf.ln(4)
+            except Exception:
+                pass
+        
+        if part_list:
+            pdf.set_fill_color(15, 118, 110)
+            pdf.set_text_color(255, 255, 255)
+            pdf.set_font("Helvetica", "B", 9)
+            pdf.cell(55, 7, "  Nama Bagian", 1, 0, "L", fill=True)
+            pdf.cell(50, 7, "Dimensi Detail", 1, 0, "L", fill=True)
+            pdf.cell(50, 7, "Material", 1, 0, "L", fill=True)
+            pdf.cell(25, 7, "Qty", 1, 1, "C", fill=True)
+            
+            pdf.set_font("Helvetica", "", 9)
+            pdf.set_text_color(226, 232, 240)
+            pdf.set_fill_color(30, 41, 59)
+            for item in part_list:
+                pdf.cell(55, 6, clean_text(f"  {item.get('nama_bagian', '')}"), 1, 0, "L", fill=True)
+                pdf.cell(50, 6, clean_text(str(item.get("dimensi_detail", ""))), 1, 0, "L", fill=True)
+                pdf.cell(50, 6, clean_text(str(item.get("material", ""))), 1, 0, "L", fill=True)
+                pdf.cell(25, 6, clean_text(str(item.get("qty", ""))), 1, 1, "C", fill=True)
+
+    # ----------------------------------------------------
+    # BAB 4: PANDUAN PERAKITAN STEP-BY-STEP
+    # ----------------------------------------------------
+    steps = data.get("steps", [])
+    if steps:
+        total_steps = len(steps)
+        for idx, step in enumerate(steps, 1):
+            pdf.add_page()
+            pdf.set_y(32)
+            
+            pdf.set_font("Helvetica", "B", 14)
+            pdf.set_text_color(234, 179, 8)
+            pdf.cell(0, 8, clean_text(f"BAB 4: LANGKAH PERAKITAN ({idx}/{total_steps})"), ln=1)
+            pdf.set_draw_color(234, 179, 8)
+            pdf.set_line_width(0.5)
+            pdf.line(15, pdf.get_y(), 195, pdf.get_y())
+            pdf.ln(6)
+            
+            pdf.set_font("Helvetica", "B", 11)
+            pdf.set_text_color(255, 255, 255)
+            step_title = step.get("title", f"Langkah {idx}")
+            pdf.cell(0, 6, clean_text(step_title), ln=1)
+            pdf.ln(2)
+            
+            if step.get("image_bytes"):
+                try:
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
+                        tmp.write(step["image_bytes"])
+                        tmp_path = tmp.name
+                    pdf.image(tmp_path, x=25, w=150)
+                    os.remove(tmp_path)
+                    pdf.ln(4)
+                except Exception:
+                    pass
+            
+            pdf.set_font("Helvetica", "", 9)
+            pdf.set_text_color(226, 232, 240)
+            inst_text = clean_text(step.get("instruction_text", ""))
+            pdf.multi_cell(0, 5, inst_text)
+
+    return bytes(pdf.output())

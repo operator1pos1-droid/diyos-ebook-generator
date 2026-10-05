@@ -1,0 +1,71 @@
+import json
+import os
+import time
+from google import genai
+from google.genai import types
+
+def generate_project_data(input_text: str) -> dict:
+    api_key = os.environ.get("GEMINI_API_KEY")
+    if not api_key:
+        raise ValueError("GEMINI_API_KEY belum terdeteksi! Jalankan 'export GEMINI_API_KEY=\"your_key\"' di Termux terlebih dahulu.")
+
+    client = genai.Client(
+        api_key=api_key,
+        http_options=types.HttpOptions(timeout=120000)
+    )
+
+    prompt_system = f"""
+    Anda adalah pakar teknik manufaktur dan instruktur perakitan furniture/DIY profesional.
+    Analisis masukan/link proyek berikut secara mendalam: "{input_text}"
+    
+    Tugas Anda:
+    1. Extrak dan hitung Bill of Materials (BOM) lengkap beserta estimasi harga dalam Rupiah.
+    2. Susun Cutting List / Part Detail (dimensi, material, jumlah).
+    3. Buat Master Prompt AI untuk gambar blueprint 3D isometric exploded view.
+    4. Susun instruksi perakitan step-by-step terperinci (alat, detail langkah, cek presisi) beserta prompt AI spesifik per langkah.
+
+    Respon WAJIB dalam format JSON valid dengan struktur berikut:
+    {{
+      "project_title": "Judul Proyek Lengkap",
+      "specs": {{
+        "bom": [
+          {{"item": "Nama Material/Komponen", "qty": 1, "satuan": "pcs/lembar/unit", "estimasi_harga_rupiah": 50000}}
+        ],
+        "part_list": [
+          {{"nama_bagian": "Nama Bagian", "dimensi_detail": "PxLxT cm", "material": "Jenis Material", "qty": 1}}
+        ]
+      }},
+      "master_prompt": "Master technical blueprint of...",
+      "steps": [
+        {{
+          "step_number": 1,
+          "title": "LANGKAH 1: [NAMA LANGKAH]",
+          "instruction_text": "Alat yang Digunakan: ...\\nDetail Instruksi:\\n1. ...\\n2. ...\\nCek Presisi: ...",
+          "ai_prompt": "[IMAGE_REFERENCE: master_blueprint.png] Technical assembly diagram, Step 1: ..."
+        }}
+      ]
+    }}
+    """
+
+    # Upaya ulang otomatis (retry) jika server Google 503 / sibuk
+    max_retries = 4
+    for attempt in range(max_retries):
+        try:
+            response = client.models.generate_content(
+                model='gemini-3.5-flash-lite',
+                contents=prompt_system,
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    temperature=0.2,
+                ),
+            )
+            return json.loads(response.text)
+        except Exception as e:
+            if "503" in str(e) or "UNAVAILABLE" in str(e):
+                if attempt < max_retries - 1:
+                    time.sleep(5 * (attempt + 1))
+                    continue
+            if attempt < max_retries - 1:
+                time.sleep(2)
+                continue
+            raise e
