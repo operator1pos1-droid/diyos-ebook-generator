@@ -1,17 +1,24 @@
 {
+  "id": "/app/static/",
   "name": "DiYos Ebook Generator",
   "short_name": "DiYos PDF",
-  "description": "Aplikasi AI pembuat ebook pertukangan kayu",
+  "description": "Aplikasi AI pembuat ebook panduan pertukangan kayu dan kreasi DIY berstandar cetak A4.",
+  "lang": "id",
+  "dir": "ltr",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#141821",
   "theme_color": "#EAB308",
+  "categories": ["productivity", "utilities", "education"],
   "icons": [
-    {
-      "src": "https://raw.githubusercontent.com/operator1pos1-droid/diyos-ebook-generator/main/assets/logo.jpg",
-      "sizes": "512x512",
-      "type": "image/jpeg",
-      "purpose": "any maskable"
-    }
+    { "src": "/app/static/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/app/static/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/app/static/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "screenshots": [
+    { "src": "/app/static/screenshot-narrow.png", "sizes": "1080x2400", "type": "image/png", "form_factor": "narrow", "label": "Generator Ebook Manufaktur" },
+    { "src": "/app/static/screenshot-wide.png", "sizes": "1280x720", "type": "image/png", "form_factor": "wide", "label": "Generator Ebook Manufaktur" }
   ]
 }
