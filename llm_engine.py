@@ -4,7 +4,7 @@ from google.genai import types, errors
 from geometry import resolve_spec, render_layout_png
 
 # Set model lewat env GEMINI_MODEL (pakai model Gemini yang aktif di akun Anda)
-MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.5-flash-lite")
+MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.5-flash")
 client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY", ""))
 
 FALLBACK_MODEL = os.environ.get("GEMINI_FALLBACK_MODEL", "")
