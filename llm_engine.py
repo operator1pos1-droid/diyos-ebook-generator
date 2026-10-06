@@ -5,19 +5,24 @@ from geometry import resolve_spec, render_layout_png
 
 # Set model lewat env GEMINI_MODEL (pakai model Gemini yang aktif di akun Anda)
 MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.5-flash")
+# Opsional: model cadangan bila model utama terus gagal (isi lewat Secrets)
+FALLBACK_MODEL = os.environ.get("GEMINI_FALLBACK_MODEL", "")
 client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY", ""))
 
-FALLBACK_MODEL = os.environ.get("GEMINI_FALLBACK_MODEL", "")
 
+def _call(prompt: str, image: tuple | None = None) -> dict:
+    """image = (bytes, mime_type), mis. (data, "image/jpeg"); None bila tanpa gambar."""
+    contents = prompt
+    if image:
+        contents = [types.Part.from_bytes(data=image[0], mime_type=image[1]), prompt]
 
-def _call(prompt: str) -> dict:
     models = [MODEL] + ([FALLBACK_MODEL] if FALLBACK_MODEL else [])
     last_err = None
     for model in models:
         for i in range(4):
             try:
                 r = client.models.generate_content(
-                    model=model, contents=prompt,
+                    model=model, contents=contents,
                     config=types.GenerateContentConfig(
                         response_mime_type="application/json", temperature=0.2))
                 return json.loads(r.text)
@@ -68,11 +73,24 @@ Aturan:
 """
 
 
-def build_spec(user_input: str, tries: int = 3):
+def build_spec(user_input: str, tries: int = 3, image: tuple | None = None, dims_hint: str = ""):
+    # Catatan tambahan bila ada gambar acuan
+    note = ""
+    if image:
+        note = ("\nAcuan: gambar desain terlampir. Tiru bentuk, jumlah part, dan hardware yang TERLIHAT. "
+                "Jangan mengarang bagian yang tidak terlihat. Ukuran dari gambar hanya perkiraan; "
+                + (f"gunakan ukuran total ini sebagai patokan: {dims_hint}."
+                   if dims_hint else
+                   "tulis asumsi ukuran di params dan tandai sebagai perkiraan."))
+    elif dims_hint:
+        note = f"\nGunakan ukuran total ini sebagai patokan: {dims_hint}."
+
+    project = user_input.strip() if user_input and user_input.strip() else "(lihat gambar terlampir)"
+
     feedback, last = "", None
     for _ in range(tries):
         try:
-            raw = _call(f"{SPEC_PROMPT}\nProyek: {user_input}\n{feedback}")
+            raw = _call(f"{SPEC_PROMPT}\nProyek: {project}{note}\n{feedback}", image=image)
             res = resolve_spec(raw)
             last = (raw, res)
             if not res["warnings"]:
@@ -86,9 +104,9 @@ def build_spec(user_input: str, tries: int = 3):
     return last  # kembalikan hasil terakhir + peringatan agar tampil di UI
 
 
-def generate_project_data(user_input: str) -> dict:
-    raw, res = build_spec(user_input)
-    title = raw.get("project_title", user_input)
+def generate_project_data(user_input: str, image: tuple | None = None, dims_hint: str = "") -> dict:
+    raw, res = build_spec(user_input, image=image, dims_hint=dims_hint)
+    title = raw.get("project_title") or user_input or "Proyek"
     env, parts, bom = res["env"], res["parts"], res["bom"]
 
     dims = "; ".join(f"{p['nama']} {p['p']}x{p['l']}x{p['t']} mm (x{p['qty']})" for p in parts)
