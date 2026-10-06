@@ -1,19 +1,35 @@
-import os, json
+import os, json, time
 from google import genai
-from google.genai import types
+from google.genai import types, errors
 from geometry import resolve_spec, render_layout_png
 
 # Set model lewat env GEMINI_MODEL (pakai model Gemini yang aktif di akun Anda)
-MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
+MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.5-flash-lite")
 client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY", ""))
+
+FALLBACK_MODEL = os.environ.get("GEMINI_FALLBACK_MODEL", "")
 
 
 def _call(prompt: str) -> dict:
-    r = client.models.generate_content(
-        model=MODEL, contents=prompt,
-        config=types.GenerateContentConfig(
-            response_mime_type="application/json", temperature=0.2))
-    return json.loads(r.text)
+    models = [MODEL] + ([FALLBACK_MODEL] if FALLBACK_MODEL else [])
+    last_err = None
+    for model in models:
+        for i in range(4):
+            try:
+                r = client.models.generate_content(
+                    model=model, contents=prompt,
+                    config=types.GenerateContentConfig(
+                        response_mime_type="application/json", temperature=0.2))
+                return json.loads(r.text)
+            except errors.ServerError as e:      # 500/503: server Gemini sibuk
+                last_err = e
+            except errors.ClientError as e:      # 429 = kena batas kuota/rate limit
+                if getattr(e, "code", None) != 429:
+                    raise
+                last_err = e
+            if i < 3:
+                time.sleep(2 ** i)               # jeda 1, 2, 4 detik
+    raise last_err
 
 
 SPEC_PROMPT = """Anda pakar manufaktur kayu & DIY. Buat SPESIFIKASI PARAMETRIK proyek ini.
