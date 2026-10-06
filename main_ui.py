@@ -1,4 +1,6 @@
+import io
 import streamlit as st
+from PIL import Image, ImageOps
 from pwa_setup import inject_pwa
 from app import create_final_ebook_from_memory
 from llm_engine import generate_project_data
@@ -22,16 +24,39 @@ def render_markdown_table(data_list):
         md += "| " + " | ".join(values) + " |\n"
     return md
 
+def prepare_image(file, max_side=1600):
+    """Perkecil & normalkan gambar acuan agar cepat dikirim ke Gemini."""
+    img = Image.open(file)
+    img = ImageOps.exif_transpose(img).convert("RGB")
+    img.thumbnail((max_side, max_side))
+    buf = io.BytesIO()
+    img.save(buf, format="JPEG", quality=88)
+    return buf.getvalue(), "image/jpeg"
+
 # TAHAP 1: INPUT REFERENSI PROYEK
 st.header("1. Input Referensi Proyek")
 input_url = st.text_input("Masukkan Link YouTube / Web / Deskripsi Singkat Proyek:", placeholder="Contoh: Sofa Bed Minimalis Modern Kayu Jati")
 
+ref_img_file = st.file_uploader(
+    "🖼️ Atau unggah gambar desain jadi sebagai acuan (opsional):",
+    type=["png", "jpg", "jpeg", "webp"], key="ref_img_upload")
+dims_hint = st.text_input(
+    "Ukuran total (opsional, mm):", placeholder="Contoh: 1800 x 900 x 750 (L x D x T)")
+if ref_img_file:
+    st.image(ref_img_file, caption="Gambar desain acuan", use_container_width=True)
+
 if st.button("🚀 Proses & Susun Instruksi Otomatis"):
-    if not input_url:
-        st.warning("Silakan masukkan link atau deskripsi proyek terlebih dahulu!")
+    if not input_url and not ref_img_file:
+        st.warning("Silakan masukkan link/deskripsi proyek atau unggah gambar desain terlebih dahulu!")
     else:
         with st.spinner("Mesin sedang menganalisis material, BOM, dan menyusun instruksi via Gemini AI..."):
-            st.session_state["project_data"] = generate_project_data(input_url)
+            try:
+                image = prepare_image(ref_img_file) if ref_img_file else None
+                st.session_state["project_data"] = generate_project_data(
+                    input_url, image=image, dims_hint=dims_hint)
+            except Exception:
+                st.error("Server AI sedang sibuk atau melebihi kuota. Coba lagi beberapa saat lagi.")
+                st.stop()
             if "pdf_bytes" in st.session_state:
                 del st.session_state["pdf_bytes"]
             st.success("Instruksi & Prompt AI Berhasil Disusun!")
